@@ -1,0 +1,46 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 가상환경
+venv/
+env/
+.venv/
+.ENV/
+.Python
+
+# 패키지 배포 파일
+build/
+dist/
+*.egg-info/
+
+# 환경설정/시크릿
+.env
+.env.* 
+secrets.json
+
+# IDE / 에디터
+# .vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# 로그, DB, 자주 변경되는 파일
+*.log
+*.sqlite3
+*.db
+
+# 테스트 출력
+htmlcov/
+.coverage
+.tox/
+
+# 빌드 아티팩트, 업로드 파일
+*.egg
+*.whl
