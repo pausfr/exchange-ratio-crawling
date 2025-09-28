@@ -291,12 +291,13 @@ class ExchangeRateCrawler:
             for rate in rates:
                 print(f"\n{rate['currency_code']} 환율 정보:")
                 print(f"  기준일: {rate['base_date']}")
-                print(f"  매매기준율: {rate['rate']}")
+                print(f"  통화코드: {rate['currency_code']}")
                 print(f"  현찰 살 때 환율: {rate['cash_buy']} (Spread: {rate['cash_buy_spread']})")
-                print(f"  현찰파실때: {rate['cash_sell']} (Spread: {rate['cash_sell_spread']})")
-                print(f"  송금보낼때: {rate['remit_send']}")
-                print(f"  송금받을때: {rate['remit_receive']}")
-                print(f"  외화수표파실때: {rate['check_sell']}")
+                print(f"  현찰 팔 때 환율: {rate['cash_sell']} (Spread: {rate['cash_sell_spread']})")
+                print(f"  송금 보낼 때 환율: {rate['remit_send']}")
+                print(f"  송금 받을 때 환율: {rate['remit_receive']}")
+                print(f"  외화 수표 팔 때 환율: {rate['check_sell']}")
+                print(f"  매매기준율: {rate['rate']}")
                 print(f"  환가료율: {rate['exchange_fee_rate']}")
                 print(f"  미화 환산율: {rate['conversion_rate']}")
                 print(f"  고시일시: {rate['announcement_datetime']}")
@@ -316,15 +317,8 @@ class ExchangeRateCrawler:
                 pass
 
     def run(self) -> bool:
-        """실행 진입점 (로컬 또는 Lambda에서 호출)"""
         self.fetch_exchange_rates()
         return True
-
-
-def lambda_handler(event=None, context=None):
-    """AWS Lambda 핸들러"""
-    crawler = ExchangeRateCrawler()
-    return crawler.run()
 
 
 def main():
