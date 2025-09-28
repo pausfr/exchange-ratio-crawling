@@ -1,6 +1,7 @@
 import os
 import re
 import time
+import pymysql
 from datetime import date, datetime
 from typing import List, Dict, Any, Optional
 
@@ -19,13 +20,104 @@ ANNOUNCEMENT_SEQUENCE = 1
 ANNOUNCEMENT_TYPE = "FIRST"
 BASE_URL = "https://www.kebhana.com/cont/mall/mall15/mall1501/index.jsp"
 
+# RDS 연결 정보 (Lambda 환경변수에서 가져옴)
+DB_HOST = os.environ.get('DB_HOST')
+DB_USERNAME = os.environ.get('DB_USERNAME')
+DB_PASSWORD = os.environ.get('DB_PASSWORD')
+DB_NAME = os.environ.get('DB_NAME')
+
+
+def check_environment_variables():
+    """필수 환경변수 설정 여부 확인"""
+    missing_vars = []
+    
+    if not DB_HOST:
+        missing_vars.append('DB_HOST')
+    if not DB_USERNAME:
+        missing_vars.append('DB_USERNAME')
+    if not DB_PASSWORD:
+        missing_vars.append('DB_PASSWORD')
+    if not DB_NAME:
+        missing_vars.append('DB_NAME')
+    
+    if missing_vars:
+        print(f"환경변수 설정 필요: {', '.join(missing_vars)}")
+        return False
+    return True
+
+
+def get_db_connection():
+    """RDS MySQL 연결을 생성하여 반환"""
+    if not check_environment_variables():
+        return None
+        
+    try:
+        connection = pymysql.connect(
+            host=DB_HOST,
+            user=DB_USERNAME,
+            password=DB_PASSWORD,
+            database=DB_NAME,
+            charset='utf8mb4',
+            autocommit=True
+        )
+        return connection
+    except Exception as e:
+        print(f"DB 연결 실패: {e}")
+        return None
+
+
+def insert_exchange_rate(connection, rate_data):
+    """환율 데이터를 DB에 삽입"""
+    try:
+        with connection.cursor() as cursor:
+            sql = """
+            INSERT INTO exchange_rates (
+                base_date, currency_code, announcement_sequence, announcement_type,
+                cash_buy, cash_buy_spread, cash_sell, cash_sell_spread,
+                remit_send, remit_receive, check_sell, base_rate,
+                exchange_fee_rate, conversion_rate,
+                announcement_datetime, query_datetime
+            ) VALUES (
+                %(base_date)s, %(currency_code)s, %(announcement_sequence)s, %(announcement_type)s,
+                %(cash_buy)s, %(cash_buy_spread)s, %(cash_sell)s, %(cash_sell_spread)s,
+                %(remit_send)s, %(remit_receive)s, %(check_sell)s, %(rate)s,
+                %(exchange_fee_rate)s, %(conversion_rate)s,
+                %(announcement_datetime)s, %(query_datetime)s
+            )
+            ON DUPLICATE KEY UPDATE
+                cash_buy = VALUES(cash_buy),
+                cash_buy_spread = VALUES(cash_buy_spread),
+                cash_sell = VALUES(cash_sell),
+                cash_sell_spread = VALUES(cash_sell_spread),
+                remit_send = VALUES(remit_send),
+                remit_receive = VALUES(remit_receive),
+                check_sell = VALUES(check_sell),
+                base_rate = VALUES(base_rate),
+                exchange_fee_rate = VALUES(exchange_fee_rate),
+                conversion_rate = VALUES(conversion_rate),
+                announcement_datetime = VALUES(announcement_datetime),
+                query_datetime = VALUES(query_datetime),
+                updated_at = CURRENT_TIMESTAMP
+            """
+            
+            cursor.execute(sql, rate_data)
+            return True
+    except Exception as e:
+        print(f"DB 삽입 실패: {e}")
+        return False
+
 
 def handler(event=None, context=None):
-    suc_cnt, err_cnt = crawler_target()
+    success = crawler_target()
+    
+    status_code = 200 if success else 500
+    message = "크롤링 성공" if success else "크롤링 실패"
+    
     return {
-        "statusCode": 200,
-        "suc_cnt": suc_cnt,
-        "err_cnt": err_cnt
+        "statusCode": status_code,
+        "message": message,
+        "currency": CURRENCY,
+        "timestamp": datetime.now().isoformat()
     }
 
 
@@ -48,9 +140,8 @@ def crawler_target():
     service = Service(executable_path="/opt/chromedriver")
     driver = webdriver.Chrome(service=service, options=chrome_options)
 
-    suc_cnt = 0
-    err_cnt = 0
-
+    success = False
+    
     # 크롤링 로직 구현
     try:
         print(f"환율 정보 크롤링 시작: {BASE_URL}")
@@ -251,7 +342,7 @@ def crawler_target():
                             }
 
                             rates.append(rate_entry)
-                            print("  -> 파싱 완료:", rate_entry)
+                            print(f"  -> {CURRENCY} 파싱 완료")
                             break
 
         print("\n" + "=" * 50)
@@ -274,21 +365,42 @@ def crawler_target():
             print(f"  고시일시: {rate['announcement_datetime']}")
             print(f"  조회시각: {rate['query_datetime']}")
 
+        # 데이터베이스에 저장
+        print("\n" + "=" * 50)
+        print("데이터베이스 저장 시작")
+        print("=" * 50)
+        
+        connection = get_db_connection()
+        if connection:
+            try:
+                insert_success_count = 0
+                for rate in rates:
+                    if insert_exchange_rate(connection, rate):
+                        insert_success_count += 1
+                
+                print(f"DB 저장 완료: {insert_success_count}/{len(rates)}건")
+                        
+            except Exception as e:
+                print(f"DB 저장 오류: {e}")
+            finally:
+                connection.close()
+                print("데이터베이스 연결 종료")
+        else:
+            print("DB 연결 실패")
+
         # iframe에서 나오기
         try:
             driver.switch_to.default_content()
         except Exception:
             pass
 
-        # 성공 카운트 증가
-        suc_cnt += 1
-        print(f"크롤링 성공! 성공 건수: {suc_cnt}")
+        # 결과 확인
+        success = len(rates) > 0
         
     except Exception as e:
         print(f"크롤링 중 오류 발생: {str(e)}")
-        err_cnt += 1
         
     # 크롤링 로직 구현 완료 
     
     driver.quit()
-    return suc_cnt, err_cnt
+    return success
