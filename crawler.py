@@ -15,6 +15,8 @@ from selenium.webdriver.support import expected_conditions as EC
 
 # 사용할 통화 코드
 CURRENCY = "USD"
+ANNOUNCEMENT_SEQUENCE = 1
+ANNOUNCEMENT_TYPE = "FIRST"
 BASE_URL = "https://www.kebhana.com/cont/mall/mall15/mall1501/index.jsp"
 
 
@@ -232,6 +234,8 @@ def crawler_target():
                             rate_entry = {
                                 "base_date": base_date,
                                 "currency_code": CURRENCY,
+                                "announcement_sequence": ANNOUNCEMENT_SEQUENCE,
+                                "announcement_type": ANNOUNCEMENT_TYPE,
                                 "cash_buy": cash_buy,
                                 "cash_buy_spread": cash_buy_spread,
                                 "cash_sell": cash_sell,
@@ -257,6 +261,8 @@ def crawler_target():
             print(f"\n{rate['currency_code']} 환율 정보:")
             print(f"  기준일: {rate['base_date']}")
             print(f"  통화코드: {rate['currency_code']}")
+            print(f"  고시차수: {rate['announcement_sequence']}")
+            print(f"  고시유형: {rate['announcement_type']}")
             print(f"  현찰 살 때 환율: {rate['cash_buy']} (Spread: {rate['cash_buy_spread']})")
             print(f"  현찰 팔 때 환율: {rate['cash_sell']} (Spread: {rate['cash_sell_spread']})")
             print(f"  송금 보낼 때 환율: {rate['remit_send']}")
