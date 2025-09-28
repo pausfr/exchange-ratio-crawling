@@ -66,57 +66,6 @@ def get_db_connection():
         return None
 
 
-def create_table_if_not_exists(connection):
-    """테이블이 없으면 생성"""
-    try:
-        with connection.cursor() as cursor:
-            # 테이블 존재 여부 확인
-            cursor.execute("SHOW TABLES LIKE 'exchange_rates'")
-            result = cursor.fetchone()
-            
-            if not result:
-                print("exchange_rates 테이블 생성 중...")
-                create_table_sql = """
-                CREATE TABLE exchange_rates (
-                    base_date DATE NOT NULL,
-                    currency_code VARCHAR(10) NOT NULL,
-                    announcement_sequence TINYINT NOT NULL DEFAULT 1,
-                    announcement_type ENUM('FIRST', 'INTERIM', 'FINAL') NOT NULL DEFAULT 'FIRST',
-                    
-                    cash_buy DECIMAL(10,4) DEFAULT 0.0000,
-                    cash_buy_spread DECIMAL(8,4) NULL,
-                    cash_sell DECIMAL(10,4) DEFAULT 0.0000,
-                    cash_sell_spread DECIMAL(8,4) NULL,
-                    remit_send DECIMAL(10,4) DEFAULT 0.0000,
-                    remit_receive DECIMAL(10,4) DEFAULT 0.0000,
-                    check_sell DECIMAL(10,4) DEFAULT 0.0000,
-                    base_rate DECIMAL(10,4) DEFAULT 0.0000,
-                    exchange_fee_rate DECIMAL(8,4) DEFAULT 0.0000,
-                    conversion_rate DECIMAL(10,4) DEFAULT 0.0000,
-                    
-                    announcement_datetime DATETIME NULL,
-                    query_datetime DATETIME NULL,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    
-                    PRIMARY KEY (base_date, currency_code, announcement_sequence),
-                    INDEX idx_currency_date (currency_code, base_date),
-                    INDEX idx_announcement_type (announcement_type, base_date),
-                    INDEX idx_base_date (base_date),
-                    INDEX idx_created_at (created_at)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-                """
-                cursor.execute(create_table_sql)
-                print("exchange_rates 테이블 생성 완료")
-            else:
-                print("exchange_rates 테이블이 이미 존재합니다")
-                
-    except Exception as e:
-        print(f"테이블 생성 실패: {e}")
-        return False
-    return True
-
-
 def insert_exchange_rate(connection, rate_data):
     """환율 데이터를 DB에 삽입"""
     try:
